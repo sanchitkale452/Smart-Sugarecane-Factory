@@ -1,0 +1,336 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}AI Insights Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="fas fa-brain text-primary"></i> AI Insights Dashboard
+        </h1>
+        <a href="{% url 'core:dashboard' %}" class="btn btn-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> {% trans "Back" %}
+        </a>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Total AI Predictions
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_predictions }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-robot fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-left-danger shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                                High Risk Machines
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ risk_machine_count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Active Anomalies
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ anomaly_count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-chart-line fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Yield Forecasts
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ farm_predictions|length }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-seedling fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Machine Health Alerts -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-danger">
+                        <i class="fas fa-cogs"></i> Machine Health Alerts
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if high_risk_machines %}
+                        <div class="list-group">
+                            {% for item in high_risk_machines %}
+                            <div class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">
+                                        <a href="{% url 'ai_ml:machine-health' item.machine.id %}">
+                                            {{ item.machine.name }}
+                                        </a>
+                                    </h6>
+                                    {% if item.risk == 'critical' %}
+                                    <span class="badge bg-danger">
+                                    {% else %}
+                                    <span class="badge bg-warning">
+                                    {% endif %}
+                                        {{ item.risk|upper }}
+                                    </span>
+                                </div>
+                                <p class="mb-1 small">
+                                    <strong>Failure Probability:</strong> {{ item.probability|floatformat:0 }}%
+                                </p>
+                                <p class="mb-0 small text-muted">
+                                    <i class="fas fa-lightbulb"></i> {{ item.recommendation }}
+                                </p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle"></i> All machines operating normally!
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Farm Yield Predictions -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-success">
+                        <i class="fas fa-chart-area"></i> Yield Predictions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if farm_predictions %}
+                        <div class="list-group">
+                            {% for item in farm_predictions %}
+                            <div class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">
+                                        <a href="{% url 'ai_ml:farm-yield' item.farm.id %}">
+                                            {{ item.farm.name }}
+                                        </a>
+                                    </h6>
+                                    <span class="badge bg-success">
+                                        {{ item.predicted_yield|floatformat:1 }} tons
+                                    </span>
+                                </div>
+                                <p class="mb-1 small">
+                                    <strong>Variety:</strong> {{ item.cycle.variety }} | 
+                                    <strong>Area:</strong> {{ item.farm.area }} acres
+                                </p>
+                                <p class="mb-0 small text-muted">
+                                    <i class="fas fa-chart-line"></i> 
+                                    Confidence: {{ item.confidence.0|floatformat:1 }} - {{ item.confidence.1|floatformat:1 }} tons
+                                </p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> No active crop cycles for prediction
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Recent Anomalies -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-warning">
+                        <i class="fas fa-exclamation-circle"></i> Recent Anomalies
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if recent_anomalies %}
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Machine</th>
+                                        <th>Severity</th>
+                                        <th>Time</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for anomaly in recent_anomalies %}
+                                    <tr>
+                                        <td>{{ anomaly.machine.name }}</td>
+                                        <td>
+                                            <span class="badge bg-{{ anomaly.severity }}">
+                                                {{ anomaly.get_severity_display }}
+                                            </span>
+                                        </td>
+                                        <td>{{ anomaly.detected_at|naturaltime }}</td>
+                                        <td>
+                                            <span class="badge bg-secondary">
+                                                {{ anomaly.get_status_display }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-success">
+                            <i class="fas fa-check"></i> No recent anomalies detected
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Inventory Alerts -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-info">
+                        <i class="fas fa-boxes"></i> Inventory Alerts
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if inventory_alerts %}
+                        <div class="list-group">
+                            {% for alert in inventory_alerts %}
+                            <div class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">
+                                        <a href="{% url 'ai_ml:inventory-forecast' alert.item.id %}">
+                                            {{ alert.item.name }}
+                                        </a>
+                                    </h6>
+                                    <span class="badge bg-{{ alert.urgency }}">
+                                        {{ alert.urgency|upper }}
+                                    </span>
+                                </div>
+                                <p class="mb-1 small">
+                                    <strong>Predicted Demand (7 days):</strong> {{ alert.predicted_demand|floatformat:0 }}
+                                </p>
+                                <p class="mb-0 small text-success">
+                                    <i class="fas fa-shopping-cart"></i> 
+                                    Recommended Order: {{ alert.recommended_order|floatformat:0 }} units
+                                </p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-success">
+                            <i class="fas fa-check"></i> All inventory levels are optimal
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Model Status -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-microchip"></i> AI Model Status
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-4">
+                            <div class="p-3">
+                                <i class="fas fa-cog fa-3x text-primary mb-2"></i>
+                                <h5>Anomaly Detection</h5>
+                                <p class="text-muted small">Real-time machine monitoring</p>
+                                <span class="badge bg-success">Active</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3">
+                                <i class="fas fa-seedling fa-3x text-success mb-2"></i>
+                                <h5>Yield Prediction</h5>
+                                <p class="text-muted small">Farm harvest forecasting</p>
+                                <span class="badge bg-success">Active</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3">
+                                <i class="fas fa-chart-line fa-3x text-info mb-2"></i>
+                                <h5>Demand Forecasting</h5>
+                                <p class="text-muted small">Inventory optimization</p>
+                                <span class="badge bg-success">Active</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.border-left-primary {
+    border-left: 0.25rem solid #4e73df !important;
+}
+.border-left-success {
+    border-left: 0.25rem solid #1cc88a !important;
+}
+.border-left-info {
+    border-left: 0.25rem solid #36b9cc !important;
+}
+.border-left-warning {
+    border-left: 0.25rem solid #f6c23e !important;
+}
+.border-left-danger {
+    border-left: 0.25rem solid #e74a3b !important;
+}
+</style>
+{% endblock %}

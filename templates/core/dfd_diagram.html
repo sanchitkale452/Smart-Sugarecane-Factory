@@ -1,0 +1,43 @@
+﻿{% extends 'base.html' %}
+{% load i18n %}
+{% block title %}System DFD Diagrams{% endblock %}
+{% block back_button %}
+<div class="container mt-3">
+  <a href="{% url 'core:factory_management' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-arrow-left me-2"></i>Back to Factory Management
+  </a>
+</div>
+{% endblock %}
+{% block content %}
+<div class="container-fluid mt-3">
+  <h4 class="mb-1"><i class="fas fa-project-diagram me-2 text-primary"></i>System DFD Diagrams</h4>
+  <p class="text-muted mb-4">Smart Sugarcane Factory Management System</p>
+
+  <!-- Tabs -->
+  <ul class="nav nav-tabs mb-4" id="dfdTabs">
+    <li class="nav-item">
+      <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#dfd0">DFD Level 0 (Context)</button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" data-bs-toggle="tab" data-bs-target="#dfd1">DFD Level 1</button>
+    </li>
+  </ul>
+
+  <div class="tab-content">
+    <div class="tab-pane fade show active" id="dfd0">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center p-4">
+          <img src="/static/dfd_level0.svg" alt="DFD Level 0" class="img-fluid" style="max-width:860px;width:100%">
+        </div>
+      </div>
+    </div>
+    <div class="tab-pane fade" id="dfd1">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center p-4">
+          <img src="/static/dfd_level1.svg" alt="DFD Level 1" class="img-fluid" style="max-width:900px;width:100%">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

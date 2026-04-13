@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Add Activity" %}{% endblock %}
+
+{% block back_button %}
+<div class="container mt-3">
+  <a href="{% url 'farms:farm-detail' pk=farm.pk %}" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-arrow-left me-2"></i>{% trans "Back to Farm" %}
+  </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card shadow-sm">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="fas fa-clipboard-list me-2"></i>{% trans "Record Activity" %} — {{ farm.name }}</h5>
+        </div>
+        <div class="card-body">
+          <form method="post">
+            {% csrf_token %}
+            {% for field in form %}
+              <div class="mb-3">
+                <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                  <div class="text-danger small">{{ field.errors }}</div>
+                {% endif %}
+              </div>
+            {% endfor %}
+            <div class="d-flex gap-2">
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save me-1"></i>{% trans "Save Activity" %}
+              </button>
+              <a href="{% url 'farms:farm-detail' pk=farm.pk %}" class="btn btn-outline-secondary">{% trans "Cancel" %}</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

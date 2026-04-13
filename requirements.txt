@@ -1,0 +1,18 @@
+asgiref==3.11.1
+crispy-bootstrap5==2026.3
+Django==6.0.4
+django-crispy-forms==2.6
+django-filter==25.2
+django-tables2==2.9.0
+django-widget-tweaks==1.5.0
+pillow==12.2.0
+python-dotenv==1.2.2
+sqlparse==0.5.5
+tzdata==2026.1
+
+# AI/ML Dependencies
+google-genai
+gunicorn==21.2.0
+whitenoise==6.6.0
+dj-database-url==2.1.0
+psycopg[binary]

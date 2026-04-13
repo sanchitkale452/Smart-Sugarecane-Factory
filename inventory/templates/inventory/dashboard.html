@@ -1,0 +1,246 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load i18n %}
+
+{% block title %}Inventory Dashboard{% endblock %}
+
+{% block back_button %}
+<div class="container mt-3">
+  <a href="{% url 'core:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-arrow-left me-2"></i>{% trans "Back to Dashboard" %}
+  </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Inventory Dashboard</h1>
+        <a href="{% url 'inventory:analysis' %}" class="btn btn-primary btn-sm">
+            <i class="fas fa-chart-bar me-1"></i> {% trans "Inventory Analysis" %}
+        </a>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row">
+        <!-- Total Items Card -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Items</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_items|intcomma }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-boxes fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent border-0 pt-0">
+                    <a href="{% url 'inventory:item-list' %}">View All</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Low Stock Card -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-danger shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Low Stock Items</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ low_stock_items|length }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent border-0 pt-0">
+                    <a href="{% url 'inventory:item-list' %}?low_stock=1">View All</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Transactions Card -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Recent Transactions</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ recent_transactions|length }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-exchange-alt fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent border-0 pt-0">
+                    <a href="{% url 'inventory:transaction-list' %}?recent=1">View All</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Expiring Soon Card -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Expiring Soon</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ expiring_soon|length }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clock fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent border-0 pt-0">
+                    <a href="{% url 'inventory:item-list' %}?expiring_soon=1">View All</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Low Stock and Recent Transactions -->
+    <div class="row">
+        <!-- Low Stock Items -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-danger">Low Stock Items</h6>
+                </div>
+                <div class="card-body">
+                    {% if low_stock_items %}
+                        <div class="table-responsive">
+                            <table class="table table-bordered" width="100%" cellspacing="0">
+                                <thead>
+                                    <tr>
+                                        <th>Item</th>
+                                        <th>Current Qty</th>
+                                        <th>Reorder Point</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in low_stock_items %}
+                                    <tr>
+                                        <td>
+                                            <a href="{% url 'inventory:item-detail' item.id %}">
+                                                {{ item.name }}
+                                            </a>
+                                        </td>
+                                        <td>{{ item.current_qty_agg|default:0|floatformat:2 }}</td>
+                                        <td>{{ item.reorder_point|default:0|floatformat:2 }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <a href="{% url 'inventory:item-list' %}?low_stock=1" class="btn btn-sm btn-primary">View All Low Stock</a>
+                    {% else %}
+                        <p class="text-muted">No low stock items.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Transactions -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">Recent Transactions</h6>
+                </div>
+                <div class="card-body">
+                    {% if recent_transactions %}
+                        <div class="table-responsive">
+                            <table class="table table-bordered" width="100%" cellspacing="0">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Item</th>
+                                        <th>Type</th>
+                                        <th>Qty</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for transaction in recent_transactions %}
+                                    <tr>
+                                        <td>{{ transaction.created_at|date:"M d, Y" }}</td>
+                                        <td>
+                                            <a href="{% url 'inventory:item-detail' transaction.item.id %}">
+                                                {{ transaction.item.name }}
+                                            </a>
+                                        </td>
+                                        <td>{{ transaction.get_transaction_type_display }}</td>
+                                        <td>{{ transaction.quantity|floatformat:2 }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <a href="{% url 'inventory:transaction-list' %}" class="btn btn-sm btn-primary">View All Transactions</a>
+                    {% else %}
+                        <p class="text-muted">No recent transactions.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Expiring Soon -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-warning">Items Expiring Soon</h6>
+                </div>
+                <div class="card-body">
+                    {% if expiring_soon %}
+                        <div class="table-responsive">
+                            <table class="table table-bordered" width="100%" cellspacing="0">
+                                <thead>
+                                    <tr>
+                                        <th>Item</th>
+                                        <th>Location</th>
+                                        <th>Quantity</th>
+                                        <th>Expiry Date</th>
+                                        <th>Days Left</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in expiring_soon %}
+                                    <tr>
+                                        <td>
+                                            <a href="{% url 'inventory:item-detail' item.item.id %}">
+                                                {{ item.item.name }}
+                                            </a>
+                                        </td>
+                                        <td>{{ item.location.name }}</td>
+                                        <td>{{ item.quantity|floatformat:2 }}</td>
+                                        <td>{{ item.expiry_date|date:"M d, Y" }}</td>
+                                        <td>{{ item.expiry_date|timeuntil }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No items expiring soon.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-refresh the dashboard every 5 minutes
+    setTimeout(function() {
+        window.location.reload(1);
+    }, 300000);
+</script>
+{% endblock %}

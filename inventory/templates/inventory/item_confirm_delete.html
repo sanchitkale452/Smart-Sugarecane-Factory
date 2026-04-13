@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+
+{% block title %}Delete {{ object.name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-lg border-0 rounded-lg mt-5">
+                <div class="card-header bg-danger text-white">
+                    <h3 class="text-center font-weight-light my-2">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Confirm Deletion
+                    </h3>
+                </div>
+                <div class="card-body text-center">
+                    <h4 class="mb-4">Are you sure you want to delete this item?</h4>
+                    
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ object.name }}</h5>
+                            <p class="card-text text-muted">
+                                {% if object.sku %}<strong>SKU:</strong> {{ object.sku }} • {% endif %}
+                                <strong>Type:</strong> {{ object.get_item_type_display }}
+                            </p>
+                            {% if object.description %}
+                                <p class="card-text">{{ object.description|truncatewords:20 }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="card-footer bg-light">
+                            <div class="row">
+                                <div class="col-6">
+                                    <small class="text-muted">
+                                        <i class="fas fa-boxes me-1"></i> 
+                                        {{ object.current_quantity|default:0|floatformat:2 }} in stock
+                                    </small>
+                                </div>
+                                <div class="col-6 text-end">
+                                    <small class="text-muted">
+                                        <i class="fas fa-calendar-alt me-1"></i> 
+                                        Created: {{ object.created_at|date:"M d, Y" }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <p class="text-danger mb-4">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <strong>Warning:</strong> This action cannot be undone.
+                    </p>
+
+                    {% if transaction_count %}
+                    <div class="alert alert-warning text-start">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        This item has <strong>{{ transaction_count }} transaction record{{ transaction_count|pluralize }}</strong>
+                        linked to it. Clicking "Delete Permanently" will delete the item <strong>and all those transactions</strong>.
+                    </div>
+                    {% endif %}
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-grid gap-2 d-md-flex justify-content-center">
+                            <a href="{% url 'inventory:item-detail' object.pk %}" class="btn btn-secondary">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash me-2"></i>Delete Permanently
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-footer text-center py-3">
+                    <a href="{% url 'inventory:item-list' %}" class="text-decoration-none">
+                        <i class="fas fa-arrow-left me-1"></i> Back to Items List
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

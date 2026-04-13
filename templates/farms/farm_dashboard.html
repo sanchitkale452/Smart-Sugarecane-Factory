@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Farm Management Dashboard" %}{% endblock %}
+
+{% block back_button %}
+<div class="container mt-3">
+  <a href="{% url 'core:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-arrow-left me-2"></i>{% trans "Back to Dashboard" %}
+  </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-4">
+                <i class="fas fa-seedling me-3"></i>
+                {% trans "Farm Management Dashboard" %}
+            </h1>
+            <p class="lead">{% trans "Manage farms, farmers, and agricultural operations" %}</p>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row mb-4">
+        <div class="col-md-4 mb-4">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">{% trans "Total Farmers" %}</h6>
+                            <h2 class="mb-0">{{ total_farmers|default:0 }}</h2>
+                        </div>
+                        <i class="fas fa-users fa-3x opacity-50"></i>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent border-0 pt-0">
+                    <a href="{% url 'farms:farmer-list-alt' %}" class="text-white">{% trans "View All" %} <i class="fas fa-arrow-right ms-1"></i></a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">{% trans "Active Farms" %}</h6>
+                            <h2 class="mb-0">{{ active_farms|default:0 }}</h2>
+                            <small>{% trans "of" %} {{ total_farms|default:0 }} {% trans "total" %}</small>
+                        </div>
+                        <i class="fas fa-seedling fa-3x opacity-50"></i>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent border-0 pt-0">
+                    <a href="{% url 'farms:farm-list' %}?status=active" class="text-white">{% trans "View All" %} <i class="fas fa-arrow-right ms-1"></i></a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-4">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title">{% trans "Total Area" %}</h6>
+                            <h2 class="mb-0">{{ total_area|default:0 }}</h2>
+                            <small>{% trans "acres" %}</small>
+                        </div>
+                        <i class="fas fa-map fa-3x opacity-50"></i>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent border-0 pt-0">
+                    <a href="{% url 'farms:farm-list' %}" class="text-white">{% trans "View All" %} <i class="fas fa-arrow-right ms-1"></i></a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-bolt me-2"></i>
+                        {% trans "Quick Actions" %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-3" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                        <a href="{% url 'farms:farmer-registration' %}" class="btn btn-success">
+                            <i class="fas fa-user-plus me-2"></i>
+                            {% trans "Register Farmer" %}
+                        </a>
+                        <a href="{% url 'farms:farm-create' %}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>
+                            {% trans "Add Farm" %}
+                        </a>
+                        <a href="{% url 'farms:farmer-list-alt' %}" class="btn btn-outline-success">
+                            <i class="fas fa-users me-2"></i>
+                            {% trans "View Farmers" %}
+                        </a>
+                        <a href="{% url 'farms:farm-list' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-seedling me-2"></i>
+                            {% trans "View Farms" %}
+                        </a>
+                        <a href="{% url 'farms:variety-analysis' %}" class="btn btn-outline-success">
+                            <i class="fas fa-chart-bar me-2"></i>
+                            {% trans "Variety Analysis" %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activities -->
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-user-plus me-2"></i>
+                        {% trans "Recent Farmer Registrations" %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_farmers %}
+                        <div class="list-group list-group-flush">
+                            {% for farmer in recent_farmers %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">{{ farmer.full_name }}</h6>
+                                        <small class="text-muted">{{ farmer.village|default:"No village" }}</small>
+                                    </div>
+                                    <small class="text-muted">{{ farmer.registration_date|date:"M d, Y" }}</small>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted">{% trans "No recent farmer registrations" %}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-seedling me-2"></i>
+                        {% trans "Recent Farm Activities" %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_activities %}
+                        <div class="list-group list-group-flush">
+                            {% for activity in recent_activities %}
+                                <div class="list-group-item">
+                                    <h6 class="mb-1">{{ activity.get_activity_type_display }}</h6>
+                                    <p class="mb-1">{{ activity.description|truncatewords:10 }}</p>
+                                    <small class="text-muted">{{ activity.farm.name }} - {{ activity.date|date:"M d, Y" }}</small>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted">{% trans "No recent farm activities" %}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

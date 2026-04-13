@@ -1,0 +1,407 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}Farm Yield Analysis - {{ farm.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        border-left: 4px solid;
+        transition: transform 0.2s;
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+    .prediction-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    .recommendation-card {
+        border-left: 4px solid #28a745;
+    }
+    .chart-container {
+        position: relative;
+        height: 300px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="fas fa-seedling text-success"></i> Farm Yield Analysis
+        </h1>
+        <div>
+            <a href="{% url 'ai_ml:dashboard' %}" class="btn btn-secondary btn-sm me-2">
+                <i class="fas fa-arrow-left"></i> {% trans "Back to AI Dashboard" %}
+            </a>
+        </div>
+    </div>
+
+    <!-- Farm Information -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-map-marked-alt"></i> {{ farm.name }}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <p class="mb-2"><strong>Location:</strong> {{ farm.location }}</p>
+                            <p class="mb-2"><strong>Area:</strong> {{ farm.area }} acres</p>
+                        </div>
+                        <div class="col-md-3">
+                            <p class="mb-2"><strong>Soil Type:</strong> {{ farm.get_soil_type_display|default:farm.soil_type }}</p>
+                            <p class="mb-2"><strong>Status:</strong> 
+                                <span class="badge bg-{% if farm.status == 'active' %}success{% else %}secondary{% endif %}">
+                                    {{ farm.get_status_display|default:farm.status }}
+                                </span>
+                            </p>
+                        </div>
+                        {% if active_cycle %}
+                        <div class="col-md-3">
+                            <p class="mb-2"><strong>Current Variety:</strong> {{ active_cycle.variety }}</p>
+                            <p class="mb-2"><strong>Planting Date:</strong> {{ active_cycle.planting_date|date:"M d, Y" }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <p class="mb-2"><strong>Current Stage:</strong> 
+                                <span class="badge bg-info">{{ active_cycle.get_current_stage_display|default:active_cycle.current_stage }}</span>
+                            </p>
+                            <p class="mb-2"><strong>Expected Harvest:</strong> {{ active_cycle.expected_harvest_date|date:"M d, Y"|default:"TBD" }}</p>
+                        </div>
+                        {% else %}
+                        <div class="col-md-6">
+                            <div class="alert alert-info mb-0">
+                                <i class="fas fa-info-circle"></i> No active crop cycle for this farm.
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Predictions -->
+    {% if prediction %}
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card shadow prediction-card">
+                <div class="card-body text-center">
+                    <h3 class="mb-3">
+                        <i class="fas fa-chart-line"></i> Predicted Yield
+                    </h3>
+                    <h1 class="display-3 mb-3">{{ prediction.predicted_yield|floatformat:2 }}</h1>
+                    <p class="mb-2">tons per acre</p>
+                    {% if prediction.confidence %}
+                    <p class="mb-0">
+                        <small>Confidence: {{ prediction.confidence|floatformat:1 }}%</small>
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> Prediction Details</h5>
+                </div>
+                <div class="card-body">
+                    {% if prediction.factors %}
+                    <h6 class="mb-3">Contributing Factors:</h6>
+                    <ul class="list-unstyled">
+                        {% for factor, value in prediction.factors.items %}
+                        <li class="mb-2">
+                            <i class="fas fa-check-circle text-success"></i> 
+                            <strong>{{ factor|title }}:</strong> {{ value }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="mb-2"><strong>Based on:</strong></p>
+                    <ul>
+                        <li>Farm area: {{ farm.area }} acres</li>
+                        <li>Soil type: {{ farm.soil_type }}</li>
+                        {% if active_cycle %}
+                        <li>Variety: {{ active_cycle.variety }}</li>
+                        <li>Planting date: {{ active_cycle.planting_date|date:"M d, Y" }}</li>
+                        {% endif %}
+                    </ul>
+                    {% endif %}
+                    
+                    {% if prediction.recommendations %}
+                    <div class="alert alert-info mt-3 mb-0">
+                        <strong><i class="fas fa-lightbulb"></i> AI Recommendation:</strong><br>
+                        {{ prediction.recommendations }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i> 
+                <strong>No prediction available.</strong> 
+                The AI model needs to be trained or there is insufficient data for this farm.
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Variety Recommendations -->
+    {% if variety_recommendations %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow recommendation-card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-leaf"></i> Recommended Varieties for {{ farm.get_soil_type_display|default:farm.soil_type }} Soil
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for variety in variety_recommendations %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title text-success">
+                                        <i class="fas fa-seedling"></i> {{ variety.variety }}
+                                    </h5>
+                                    <p class="card-text">
+                                        <strong>Expected Yield:</strong> {{ variety.expected_yield|floatformat:2 }} tons/acre
+                                    </p>
+                                    {% if variety.confidence %}
+                                    <p class="card-text">
+                                        <small class="text-muted">Confidence: {{ variety.confidence|floatformat:1 }}%</small>
+                                    </p>
+                                    {% endif %}
+                                    {% if variety.notes %}
+                                    <p class="card-text">
+                                        <small>{{ variety.notes }}</small>
+                                    </p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Planting Recommendations -->
+    {% if planting_recommendations %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow recommendation-card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calendar-alt"></i> Optimal Planting Time Recommendations
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if planting_recommendations.optimal_months %}
+                    <div class="mb-3">
+                        <h6><i class="fas fa-star text-warning"></i> Best Months to Plant:</h6>
+                        <p class="lead">{{ planting_recommendations.optimal_months|join:", " }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    {% if planting_recommendations.reasoning %}
+                    <div class="alert alert-info mb-0">
+                        <strong>Why?</strong> {{ planting_recommendations.reasoning }}
+                    </div>
+                    {% endif %}
+                    
+                    {% if planting_recommendations.expected_yield %}
+                    <div class="mt-3">
+                        <p class="mb-0">
+                            <strong>Expected Yield:</strong> {{ planting_recommendations.expected_yield|floatformat:2 }} tons/acre
+                        </p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Historical Data (if available) -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="fas fa-history"></i> Historical Performance</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="yieldHistoryChart"></canvas>
+                    </div>
+                    <p class="text-center text-muted mt-3">
+                        <small>Historical yield data will be displayed here when available</small>
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Yield Comparison</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="yieldComparisonChart"></canvas>
+                    </div>
+                    <p class="text-center text-muted mt-3">
+                        <small>Comparison with other farms will be displayed here</small>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    <h5 class="mb-3">Next Steps</h5>
+                    <a href="#" class="btn btn-primary me-2">
+                        <i class="fas fa-download"></i> Download Report
+                    </a>
+                    <a href="#" class="btn btn-success me-2">
+                        <i class="fas fa-sync-alt"></i> Refresh Analysis
+                    </a>
+                    <a href="#" class="btn btn-info">
+                        <i class="fas fa-share-alt"></i> Share Insights
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+    // Preserve chart data across refresh with localStorage (with TTL)
+    document.addEventListener('DOMContentLoaded', function() {
+        const farmId = '{{ farm.id }}';
+        const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+        function key(name) { return `farm_${farmId}_${name}_v1`; }
+        function load(name) {
+            try {
+                const raw = localStorage.getItem(key(name));
+                if (!raw) return null;
+                const obj = JSON.parse(raw);
+                if (!obj || !obj.ts || (Date.now() - obj.ts) > CACHE_TTL_MS) return null;
+                return obj.data;
+            } catch { return null; }
+        }
+        function save(name, data) {
+            try { localStorage.setItem(key(name), JSON.stringify({ ts: Date.now(), data })); } catch {}
+        }
+        function clearAll() {
+            try {
+                localStorage.removeItem(key('yieldHistory'));
+                localStorage.removeItem(key('yieldComparison'));
+            } catch {}
+        }
+
+        // Wire up "Refresh Analysis" to clear cache and reload
+        const refreshBtn = document.querySelector('.btn-success.me-2 i.fa-sync-alt')?.closest('a');
+        if (refreshBtn) {
+            refreshBtn.id = 'refreshAnalysisBtn';
+            refreshBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                clearAll();
+                location.reload();
+            });
+        }
+
+        // Server-provided data (escaped JSON)
+        const serverHistoryLabels = JSON.parse('{{ yield_history_labels|default:"[]"|escapejs }}');
+        const serverHistoryValues = JSON.parse('{{ yield_history_values|default:"[]"|escapejs }}');
+        const serverCompLabels = JSON.parse('{{ yield_comparison_labels|default:"[]"|escapejs }}');
+        const serverCompValues = JSON.parse('{{ yield_comparison_values|default:"[]"|escapejs }}');
+
+        // Yield History Chart
+        const historyCtx = document.getElementById('yieldHistoryChart');
+        if (historyCtx) {
+            const cached = load('yieldHistory');
+            const historyData = cached || (
+                (serverHistoryLabels.length > 0 && serverHistoryValues.length === serverHistoryLabels.length)
+                ? {
+                    labels: serverHistoryLabels,
+                    datasets: [{
+                        label: 'Yield (tons/acre)',
+                        data: serverHistoryValues,
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1
+                    }]
+                  }
+                : {
+                    labels: ['2020', '2021', '2022', '2023', '2024'],
+                    datasets: [{
+                        label: 'Yield (tons/acre)',
+                        data: [0, 0, 0, 0, 0],
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1
+                    }]
+                  }
+            );
+            const historyChart = new Chart(historyCtx, {
+                type: 'line',
+                data: historyData,
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+            // Save current data back to cache (so any runtime updates persist)
+            save('yieldHistory', historyChart.data);
+        }
+
+        // Yield Comparison Chart
+        const comparisonCtx = document.getElementById('yieldComparisonChart');
+        if (comparisonCtx) {
+            const cached = load('yieldComparison');
+            const baseLabels = ['This Farm', 'Average', 'Best'];
+            const baseValues = [0, 0, 0];
+            const compLabels = (Array.isArray(serverCompLabels) && serverCompLabels.length === 3) ? serverCompLabels : baseLabels;
+            const compValues = (Array.isArray(serverCompValues) && serverCompValues.length === 3) ? serverCompValues : baseValues;
+            const comparisonData = cached || {
+                labels: compLabels,
+                datasets: [{
+                    label: 'Yield (tons/acre)',
+                    data: compValues,
+                    backgroundColor: [
+                        'rgba(54, 162, 235, 0.5)',
+                        'rgba(255, 206, 86, 0.5)',
+                        'rgba(75, 192, 192, 0.5)'
+                    ]
+                }]
+            };
+            const comparisonChart = new Chart(comparisonCtx, {
+                type: 'bar',
+                data: comparisonData,
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+            // Save current data back to cache
+            save('yieldComparison', comparisonChart.data);
+        }
+    });
+</script>
+{% endblock %}

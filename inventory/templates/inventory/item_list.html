@@ -1,0 +1,245 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load i18n %}
+
+{% block title %}{% trans "Inventory Items" %}{% endblock %}
+
+{% block back_button %}
+<div class="container mt-3">
+  <a href="{% url 'inventory:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-arrow-left me-2"></i>{% trans "Back to Inventory" %}
+  </a>
+</div>
+{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">{% trans "Inventory Items" %}</h1>
+        <a href="{% url 'inventory:item-add' %}" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus"></i> {% trans "Add New Item" %}
+        </a>
+    </div>
+
+    <!-- Search and Filter Form -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">{% trans "Filter" %} {% trans "Items" %}</h6>
+        </div>
+        <div class="card-body">
+            <form method="get" class="form-inline">
+                {% csrf_token %}
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <input type="text" name="q" class="form-control" placeholder="{% trans 'Search' %}..." 
+                               value="{{ request.GET.q }}">
+                    </div>
+                    <div class="col-md-3">
+                        <select name="category" class="form-select">
+                            <option value="">{% trans "All Categories" %}</option>
+                            {% for category in categories %}
+                                <option value="{{ category.id }}" 
+                                    {% if request.GET.category == category.id|stringformat:'s' %}selected{% endif %}>
+                                    {{ category.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select name="status" class="form-select">
+                            <option value="">{% trans "All Statuses" %}</option>
+                            <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>{% trans "Active" %}</option>
+                            <option value="inactive" {% if request.GET.status == 'inactive' %}selected{% endif %}>{% trans "Inactive" %}</option>
+                            <option value="low_stock" {% if request.GET.status == 'low_stock' %}selected{% endif %}>{% trans "Low Stock" %}</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-search"></i> {% trans "Filter" %}
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Items Table -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Items List</h6>
+        </div>
+        <div class="card-body">
+            {% if items %}
+                <div class="table-responsive">
+                    <table class="table table-bordered" width="100%" cellspacing="0">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>SKU</th>
+                                <th>Category</th>
+                                <th>Current Stock</th>
+                                <th>Unit</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'inventory:item-detail' item.id %}">
+                                        {{ item.name }}
+                                    </a>
+                                </td>
+                                <td>{{ item.sku|default:"-" }}</td>
+                                <td>{{ item.category.name|default:"-" }}</td>
+                                <td class="{% if item.current_qty_agg <= item.reorder_point and item.reorder_point %}text-danger fw-bold{% endif %}">
+                                    {{ item.current_qty_agg|default:0|floatformat:2 }}
+                                    {% if item.reorder_point and item.current_qty_agg <= item.reorder_point %}
+                                        <i class="fas fa-exclamation-triangle" title="Below reorder point"></i>
+                                    {% endif %}
+                                </td>
+                                <td>{{ item.unit_of_measure.abbreviation }}</td>
+                                <td>
+                                    {% if item.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'inventory:item-update' item.id %}" 
+                                           class="btn btn-info" 
+                                           title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{% url 'inventory:item-detail' item.id %}" 
+                                           class="btn btn-primary" 
+                                           title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <button type="button"
+                                                class="btn btn-danger"
+                                                title="Delete"
+                                                data-item-id="{{ item.id }}"
+                                                onclick="confirmDelete({{ item.id }}, '{{ item.name|escapejs }}')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                {% if is_paginated %}
+                <div class="mt-4">
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Previous</a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ num }}</span>
+                                    </li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Next</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+                
+            {% else %}
+                <div class="alert alert-info">
+                    No items found. <a href="{% url 'inventory:item-add' %}">Add your first item</a>.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-submit form on filter change
+    document.addEventListener('DOMContentLoaded', function() {
+        const filterSelects = document.querySelectorAll('select[name]');
+        filterSelects.forEach(select => {
+            select.addEventListener('change', function() {
+                this.form.submit();
+            });
+        });
+    });
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function confirmDelete(itemId, itemName) {
+        if (confirm('Delete "' + itemName + '"?\n\nThis will also delete all linked transaction records. This cannot be undone.')) {
+            fetch('/inventory/items/' + itemId + '/delete/ajax/', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(async r => {
+                const ct = (r.headers.get('content-type') || '').toLowerCase();
+                if (ct.includes('application/json')) {
+                    return await r.json();
+                }
+                const text = await r.text();
+                return { success: false, error: text || ('HTTP ' + r.status) };
+            })
+            .then(data => {
+                if (data.success) {
+                    // Remove the row from the table
+                    const btn = document.querySelector('[data-item-id="' + itemId + '"]');
+                    if (btn) btn.closest('tr').remove();
+                    // Show a brief success message
+                    const alert = document.createElement('div');
+                    alert.className = 'alert alert-success alert-dismissible fade show';
+                    alert.innerHTML = data.message + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+                    document.querySelector('.container-fluid').prepend(alert);
+                } else {
+                    alert('Delete failed: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch((err) => {
+                console.error(err);
+                alert('Request failed. Please try again.');
+            });
+        }
+    }
+</script>
+{% endblock %}

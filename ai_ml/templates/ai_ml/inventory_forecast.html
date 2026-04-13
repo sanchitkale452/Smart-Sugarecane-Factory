@@ -1,0 +1,351 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}Inventory Forecast - {{ item.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .forecast-card {
+        border-left: 4px solid #007bff;
+        transition: transform 0.2s;
+    }
+    .forecast-card:hover {
+        transform: translateY(-5px);
+    }
+    .chart-container {
+        position: relative;
+        height: 350px;
+    }
+    .metric-box {
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="fas fa-chart-line text-info"></i> Inventory Forecast
+        </h1>
+        <a href="{% url 'ai_ml:dashboard' %}" class="btn btn-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> {% trans "Back to AI Dashboard" %}
+        </a>
+    </div>
+
+    <!-- Item Information -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-box"></i> {{ item.name }}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <p class="mb-2"><strong>SKU:</strong> {{ item.sku|default:"N/A" }}</p>
+                            <p class="mb-2"><strong>Category:</strong> {{ item.get_category_display|default:item.category }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <p class="mb-2"><strong>Current Stock:</strong> {{ item.current_stock|default:0 }}</p>
+                            <p class="mb-2"><strong>Unit:</strong> {{ item.unit|default:"units" }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <p class="mb-2"><strong>Reorder Point:</strong> {{ item.reorder_point|default:"Not set" }}</p>
+                            <p class="mb-2"><strong>Status:</strong> 
+                                <span class="badge bg-{% if item.is_active %}success{% else %}secondary{% endif %}">
+                                    {% if item.is_active %}Active{% else %}Inactive{% endif %}
+                                </span>
+                            </p>
+                        </div>
+                        <div class="col-md-3">
+                            {% if item.description %}
+                            <p class="mb-2"><strong>Description:</strong> {{ item.description|truncatewords:10 }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Forecast Results -->
+    {% if forecast %}
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card shadow forecast-card">
+                <div class="card-body metric-box bg-light">
+                    <h6 class="text-muted mb-2">Next 7 Days Demand</h6>
+                    <h2 class="text-primary mb-0">{{ forecast.next_7_days|floatformat:0 }}</h2>
+                    <small class="text-muted">{{ item.unit|default:"units" }}</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card shadow forecast-card">
+                <div class="card-body metric-box bg-light">
+                    <h6 class="text-muted mb-2">Next 30 Days Demand</h6>
+                    <h2 class="text-info mb-0">{{ forecast.next_30_days|floatformat:0 }}</h2>
+                    <small class="text-muted">{{ item.unit|default:"units" }}</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card shadow forecast-card">
+                <div class="card-body metric-box bg-light">
+                    <h6 class="text-muted mb-2">Forecast Accuracy</h6>
+                    <h2 class="text-success mb-0">{{ forecast.accuracy|floatformat:1 }}%</h2>
+                    <small class="text-muted">Based on historical data</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Demand Chart -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-area"></i> Demand Forecast Visualization
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="demandForecastChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trend Analysis -->
+    {% if forecast.trend %}
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-trending-up"></i> Trend Analysis</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Trend Direction:</strong> 
+                        <span class="badge bg-{% if forecast.trend == 'increasing' %}success{% elif forecast.trend == 'decreasing' %}danger{% else %}secondary{% endif %}">
+                            {{ forecast.trend|title }}
+                        </span>
+                    </p>
+                    {% if forecast.trend_percentage %}
+                    <p><strong>Change Rate:</strong> {{ forecast.trend_percentage|floatformat:1 }}%</p>
+                    {% endif %}
+                    {% if forecast.seasonality %}
+                    <p><strong>Seasonality Detected:</strong> 
+                        <span class="badge bg-warning">Yes</span>
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-lightbulb"></i> AI Insights</h5>
+                </div>
+                <div class="card-body">
+                    {% if forecast.insights %}
+                    <ul class="mb-0">
+                        {% for insight in forecast.insights %}
+                        <li>{{ insight }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="mb-0">Based on historical consumption patterns, the demand for this item is expected to {{ forecast.trend|default:"remain stable" }}.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle"></i> 
+        <strong>No forecast available.</strong> 
+        Insufficient historical data to generate accurate predictions. More transaction history is needed.
+    </div>
+    {% endif %}
+
+    <!-- Reorder Recommendation -->
+    {% if reorder_recommendation %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="fas fa-shopping-cart"></i> Reorder Recommendation
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6>Recommended Order Quantity</h6>
+                            <h3 class="text-warning">{{ reorder_recommendation.quantity|floatformat:0 }} {{ item.unit|default:"units" }}</h3>
+                        </div>
+                        <div class="col-md-4">
+                            <h6>Recommended Order Date</h6>
+                            <h3 class="text-warning">{{ reorder_recommendation.date|date:"M d, Y" }}</h3>
+                        </div>
+                        <div class="col-md-4">
+                            <h6>Expected Stock Duration</h6>
+                            <h3 class="text-warning">{{ reorder_recommendation.duration|default:"30" }} days</h3>
+                        </div>
+                    </div>
+                    {% if reorder_recommendation.reasoning %}
+                    <div class="alert alert-info mt-3 mb-0">
+                        <strong>Reasoning:</strong> {{ reorder_recommendation.reasoning }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Historical Data -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="fas fa-history"></i> Recent Transactions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="transactionHistoryChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Usage Pattern</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="usagePatternChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    <a href="#" class="btn btn-primary me-2">
+                        <i class="fas fa-download"></i> Download Forecast Report
+                    </a>
+                    <a href="#" class="btn btn-success me-2">
+                        <i class="fas fa-sync-alt"></i> Refresh Forecast
+                    </a>
+                    {% if reorder_recommendation %}
+                    <a href="#" class="btn btn-warning">
+                        <i class="fas fa-shopping-cart"></i> Create Purchase Order
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Demand Forecast Chart
+        const forecastCtx = document.getElementById('demandForecastChart');
+        if (forecastCtx) {
+            new Chart(forecastCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                    datasets: [{
+                        label: 'Forecasted Demand',
+                        data: [{{ forecast.next_7_days|default:0 }}, 
+                               {{ forecast.next_7_days|default:0 }}, 
+                               {{ forecast.next_7_days|default:0 }}, 
+                               {{ forecast.next_7_days|default:0 }}],
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // Transaction History Chart
+        const historyCtx = document.getElementById('transactionHistoryChart');
+        if (historyCtx) {
+            new Chart(historyCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Last Month', 'This Month'],
+                    datasets: [{
+                        label: 'Transactions',
+                        data: [0, 0],
+                        backgroundColor: 'rgba(54, 162, 235, 0.5)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        // Usage Pattern Chart
+        const patternCtx = document.getElementById('usagePatternChart');
+        if (patternCtx) {
+            new Chart(patternCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Production', 'Maintenance', 'Other'],
+                    datasets: [{
+                        data: [60, 30, 10],
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.5)',
+                            'rgba(54, 162, 235, 0.5)',
+                            'rgba(255, 206, 86, 0.5)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

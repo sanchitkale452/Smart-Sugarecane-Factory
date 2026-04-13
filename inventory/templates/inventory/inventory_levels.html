@@ -1,0 +1,260 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load i18n %}
+
+{% block title %}Inventory Levels{% endblock %}
+
+{% block back_button %}
+<div class="container mt-3">
+  <a href="{% url 'inventory:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-arrow-left me-2"></i>{% trans "Back to Inventory" %}
+  </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Inventory Levels</h1>
+        <div>
+            <a href="{% url 'inventory:adjust-inventory' %}" class="btn btn-primary btn-sm">
+                <i class="fas fa-exchange-alt"></i> Adjust Inventory
+            </a>
+            <a href="{% url 'inventory:export-inventory' %}" class="btn btn-success btn-sm">
+                <i class="fas fa-file-export"></i> Export
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Filters</h6>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label for="category" class="form-label">Category</label>
+                    <select name="category" id="category" class="form-select">
+                        <option value="">All Categories</option>
+                        {% for category in categories %}
+                            <option value="{{ category.id }}" 
+                                {% if request.GET.category == category.id|stringformat:'s' %}selected{% endif %}>
+                                {{ category.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="location" class="form-label">Location</label>
+                    <select name="location" id="location" class="form-select">
+                        <option value="">All Locations</option>
+                        {% for location in locations %}
+                            <option value="{{ location.id }}" 
+                                {% if request.GET.location == location.id|stringformat:'s' %}selected{% endif %}>
+                                {{ location.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="status" class="form-label">Status</label>
+                    <select name="status" id="status" class="form-select">
+                        <option value="">All Statuses</option>
+                        <option value="low" {% if request.GET.status == 'low' %}selected{% endif %}>Low Stock</option>
+                        <option value="normal" {% if request.GET.status == 'normal' %}selected{% endif %}>In Stock</option>
+                        <option value="overstocked" {% if request.GET.status == 'overstocked' %}selected{% endif %}>Overstocked</option>
+                        <option value="out_of_stock" {% if request.GET.status == 'out_of_stock' %}selected{% endif %}>Out of Stock</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-filter me-1"></i> Apply
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Inventory Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Total Items</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ summary.total_items|intcomma }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-boxes fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                In Stock Items</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ summary.in_stock_items|intcomma }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Low Stock Items</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ summary.low_stock_items|intcomma }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-danger shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                                Out of Stock</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ summary.out_of_stock_items|intcomma }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-times-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inventory Table -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Inventory Items</h6>
+        </div>
+        <div class="card-body">
+            {% if items %}
+                <div class="table-responsive">
+                    <table class="table table-bordered" id="inventoryTable" width="100%" cellspacing="0">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Category</th>
+                                <th>Location</th>
+                                <th>Current Stock</th>
+                                <th>Status</th>
+                                <th>Last Updated</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'inventory:item-detail' item.id %}">
+                                        {{ item.name }}
+                                    </a>
+                                    <div class="small text-muted">{{ item.sku|default:"No SKU" }}</div>
+                                </td>
+                                <td>{{ item.category.name|default:"-" }}</td>
+                                <td>{{ item.location.name|default:"-" }}</td>
+                                <td>
+                                    {{ item.current_quantity|floatformat:2 }} {{ item.unit_of_measure.abbreviation }}
+                                    <div class="progress mt-1" style="height: 5px;">
+                                        <div class="progress-bar 
+                                            {% if item.current_quantity <= item.reorder_point %}
+                                                bg-danger
+                                            {% elif item.current_quantity >= item.max_quantity|default:item.current_quantity|add:1 %}
+                                                bg-warning
+                                            {% else %}
+                                                bg-success
+                                            {% endif %}" 
+                                            role="progressbar" 
+                                            style="width: {{ item.stock_percentage|default:0 }}%" 
+                                            aria-valuenow="{{ item.stock_percentage|default:0 }}" 
+                                            aria-valuemin="0" 
+                                            aria-valuemax="100">
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if item.current_quantity <= 0 %}
+                                        <span class="badge bg-danger">Out of Stock</span>
+                                    {% elif item.current_quantity <= item.reorder_point %}
+                                        <span class="badge bg-warning">Low Stock</span>
+                                    {% elif item.current_quantity >= item.max_quantity|default:item.current_quantity|add:1 %}
+                                        <span class="badge bg-info">Overstocked</span>
+                                    {% else %}
+                                        <span class="badge bg-success">In Stock</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ item.updated_at|date:"M d, Y" }}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'inventory:adjust-inventory' %}?item={{ item.id }}" 
+                                           class="btn btn-primary" 
+                                           title="Adjust Stock">
+                                            <i class="fas fa-exchange-alt"></i>
+                                        </a>
+                                        <a href="{% url 'inventory:item-detail' item.id %}" 
+                                           class="btn btn-info" 
+                                           title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    No inventory items found matching your criteria.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Page level plugins -->
+<script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+
+<script>
+// Initialize DataTable
+document.addEventListener('DOMContentLoaded', function() {
+    $('#inventoryTable').DataTable({
+        "pageLength": 25,
+        "order": [[3, 'asc']], // Sort by stock level by default
+        "columnDefs": [
+            { "orderable": false, "targets": [6] } // Disable sorting on actions column
+        ]
+    });
+    
+    // Auto-submit form when filters change
+    $('select[name]').on('change', function() {
+        $(this).closest('form').submit();
+    });
+});
+</script>
+{% endblock %}

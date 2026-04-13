@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Factory Management" %} - Sugarcane Factory{% endblock %}
+
+{% block back_button %}
+<div class="container mt-3">
+  <a href="{% url 'core:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-arrow-left me-2"></i>{% trans "Back to Dashboard" %}
+  </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-4">
+                <i class="fas fa-industry me-3"></i>
+                {% trans "Factory Management System" %}
+            </h1>
+            <p class="lead">{% trans "Sugarcane Factory Control Center" %}</p>
+        </div>
+    </div>
+
+    <!-- Main Entry Sections -->
+    <div class="row">
+        <!-- Factory Management Section -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100 border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="card-title mb-0">
+                        <i class="fas fa-industry me-2"></i>
+                        {% trans "Factory Management" %}
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">{% trans "Manage factory operations, inventory, and production" %}</p>
+                    
+                    <!-- Factory Stats -->
+                    <div class="row mb-4">
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h4 class="text-primary">{{ total_items|default:0 }}</h4>
+                                <small>{% trans "Inventory Items" %}</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h4 class="text-warning">{{ low_stock_items|default:0 }}</h4>
+                                <small>{% trans "Low Stock" %}</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Factory Actions -->
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'inventory:factory_dashboard' %}" class="btn btn-primary">
+                            <i class="fas fa-tachometer-alt me-2"></i>
+                            {% trans "Factory Dashboard" %}
+                        </a>
+                        <a href="{% url 'inventory:item-list' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-boxes me-2"></i>
+                            {% trans "View Inventory" %}
+                        </a>
+                        <a href="{% url 'inventory:item-add' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-plus me-2"></i>
+                            {% trans "Add Item" %}
+                        </a>
+                        <a href="{% url 'inventory:transaction-add' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-exchange-alt me-2"></i>
+                            {% trans "New Transaction" %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Farmer Management Section -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100 border-success">
+                <div class="card-header bg-success text-white">
+                    <h3 class="card-title mb-0">
+                        <i class="fas fa-users me-2"></i>
+                        {% trans "Farmer Management" %}
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">{% trans "Manage farmer registrations, farms, and crop cycles" %}</p>
+                    
+                    <!-- Farmer Stats -->
+                    <div class="row mb-4">
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h4 class="text-success">{{ total_farmers|default:0 }}</h4>
+                                <small>{% trans "Farmers" %}</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h4 class="text-info">{{ active_farms|default:0 }}</h4>
+                                <small>{% trans "Active Farms" %}</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Farmer Actions -->
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'farms:farm_dashboard' %}" class="btn btn-success">
+                            <i class="fas fa-tachometer-alt me-2"></i>
+                            {% trans "Farm Dashboard" %}
+                        </a>
+                        <a href="{% url 'farms:farmer-registration' %}" class="btn btn-outline-success">
+                            <i class="fas fa-user-plus me-2"></i>
+                            {% trans "Register Farmer" %}
+                        </a>
+                        <a href="{% url 'farms:farmer-list-alt' %}" class="btn btn-outline-success">
+                            <i class="fas fa-users me-2"></i>
+                            {% trans "View Farmers" %}
+                        </a>
+                        <a href="{% url 'farms:farm-list' %}" class="btn btn-outline-success">
+                            <i class="fas fa-seedling me-2"></i>
+                            {% trans "View Farms" %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Options -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-cogs me-2"></i>
+                        {% trans "Additional Options" %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-3" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                        <a href="{% url 'inventory:category-list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-tags me-2"></i>
+                            {% trans "Categories" %}
+                        </a>
+                        <a href="{% url 'inventory:location-list' %}" class="btn btn-outline-info">
+                            <i class="fas fa-map-marker-alt me-2"></i>
+                            {% trans "Locations" %}
+                        </a>
+                        <a href="{% url 'production:machine_analysis' %}" class="btn btn-outline-success">
+                            <i class="fas fa-cogs me-2"></i>
+                            {% trans "Machine Analysis" %}
+                        </a>
+
+                        <a href="{% url 'core:dashboard' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-tachometer-alt me-2"></i>
+                            {% trans "Classic Dashboard" %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,277 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Sugarcane Variety Analysis" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chart-card { min-height: 320px; }
+    .chart-card canvas { max-height: 280px; }
+    .variety-btn { transition: all 0.2s; }
+    .variety-btn.active { transform: scale(1.05); }
+</style>
+{% endblock %}
+
+{% block back_button %}
+<div class="container mt-3">
+    <a href="{% url 'farms:farm_dashboard' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-2"></i>{% trans "Back to Farm Dashboard" %}
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-3 align-items-center">
+        <div class="col">
+            <h2><i class="fas fa-chart-bar me-2 text-success"></i>{% trans "Sugarcane Variety Analysis" %}</h2>
+            <p class="text-muted">{% trans "Compare yield, growth stages and performance across varieties. Charts update instantly." %}</p>
+        </div>
+    </div>
+
+    <!-- Variety Selector Buttons -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-body py-3">
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <span class="fw-semibold me-2">{% trans "Variety:" %}</span>
+                <button class="btn btn-success btn-sm variety-btn active" data-variety="">
+                    <i class="fas fa-globe me-1"></i>{% trans "All" %}
+                </button>
+                {% for v in varieties %}
+                <button class="btn btn-outline-success btn-sm variety-btn" data-variety="{{ v }}">
+                    {{ v }}
+                </button>
+                {% endfor %}
+            </div>
+            <div class="mt-2">
+                <small class="text-muted">
+                    {% trans "Showing:" %} <span id="currentVarietyLabel" class="fw-semibold text-success">{% trans "All Varieties" %}</span>
+                    &nbsp;|&nbsp; {% trans "Total cycles:" %} <span id="totalCycles" class="fw-semibold">-</span>
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 1 -->
+    <div class="row mb-4">
+        <div class="col-lg-7 mb-4">
+            <div class="card shadow-sm chart-card">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-balance-scale me-2"></i>{% trans "Avg Estimated vs Actual Yield (tons)" %}</h6>
+                    <small id="yieldSubtitle" class="opacity-75"></small>
+                </div>
+                <div class="card-body">
+                    <canvas id="yieldComparisonChart"></canvas>
+                    <p id="noYieldData" class="text-muted text-center d-none mt-3">{% trans "No yield data available." %}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5 mb-4">
+            <div class="card shadow-sm chart-card">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="fas fa-seedling me-2"></i>{% trans "Crop Stage Distribution" %}</h6>
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center">
+                    <canvas id="stageChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 2 -->
+    <div class="row mb-4">
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm chart-card">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0"><i class="fas fa-tractor me-2"></i>{% trans "Crop Cycles per Farm" %}</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="farmChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm chart-card">
+                <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0"><i class="fas fa-chart-line me-2"></i>{% trans "Yield Trend by Year" %}</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="trendChart"></canvas>
+                    <p id="noTrendData" class="text-muted text-center d-none mt-3">{% trans "No harvested data for trend." %}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const ALL_DATA = {{ chart_data_json|safe }};
+const COLORS = [
+    '#198754','#0d6efd','#ffc107','#dc3545','#0dcaf0',
+    '#6f42c1','#fd7e14','#20c997','#6c757d','#d63384'
+];
+
+let charts = {};
+
+function destroyChart(id) {
+    if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+}
+
+function pctTooltip() {
+    return {
+        callbacks: {
+            label: (ctx) => {
+                const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                const pct = total ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
+                return ` ${ctx.label}: ${ctx.parsed} (${pct}%)`;
+            }
+        }
+    };
+}
+
+function renderCharts(variety) {
+    const d = ALL_DATA[variety] || ALL_DATA[''];
+
+    // --- Yield Comparison ---
+    destroyChart('yieldComparisonChart');
+    document.getElementById('noYieldData').classList.add('d-none');
+    const yc = d.yield_comparison;
+    const totalCycles = yc.counts.reduce((a, b) => a + b, 0);
+    document.getElementById('totalCycles').textContent = totalCycles;
+    document.getElementById('yieldSubtitle').textContent = variety ? `Variety: ${variety}` : 'All Varieties';
+
+    if (yc.labels.length) {
+        charts['yieldComparisonChart'] = new Chart(document.getElementById('yieldComparisonChart'), {
+            type: 'bar',
+            data: {
+                labels: yc.labels,
+                datasets: [
+                    {
+                        label: 'Avg Estimated (tons)',
+                        data: yc.estimated,
+                        backgroundColor: 'rgba(25,135,84,0.75)',
+                        borderColor: '#198754', borderWidth: 1,
+                    },
+                    {
+                        label: 'Avg Actual (tons)',
+                        data: yc.actual,
+                        backgroundColor: 'rgba(13,110,253,0.75)',
+                        borderColor: '#0d6efd', borderWidth: 1,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            afterLabel: (ctx) => {
+                                const idx = ctx.dataIndex;
+                                return `Cycles: ${yc.counts[idx]}`;
+                            }
+                        }
+                    }
+                },
+                scales: { y: { beginAtZero: true, title: { display: true, text: 'Yield (tons)' } } }
+            }
+        });
+    } else {
+        document.getElementById('noYieldData').classList.remove('d-none');
+    }
+
+    // --- Stage Distribution ---
+    destroyChart('stageChart');
+    const sd = d.stage_distribution;
+    charts['stageChart'] = new Chart(document.getElementById('stageChart'), {
+        type: 'doughnut',
+        data: {
+            labels: sd.labels,
+            datasets: [{ data: sd.counts, backgroundColor: COLORS }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'bottom' }, tooltip: pctTooltip() }
+        }
+    });
+
+    // --- Farm Distribution ---
+    destroyChart('farmChart');
+    const fd = d.farm_distribution;
+    charts['farmChart'] = new Chart(document.getElementById('farmChart'), {
+        type: 'bar',
+        data: {
+            labels: fd.labels,
+            datasets: [{
+                label: 'Crop Cycles',
+                data: fd.counts,
+                backgroundColor: COLORS.slice(0, fd.labels.length),
+            }]
+        },
+        options: {
+            indexAxis: 'y', responsive: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { afterLabel: (ctx) => `Yield: ${fd.yields[ctx.dataIndex] ?? 'N/A'} tons` } }
+            },
+            scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        }
+    });
+
+    // --- Yield Trend ---
+    destroyChart('trendChart');
+    document.getElementById('noTrendData').classList.add('d-none');
+    const trend = d.yield_trend;
+    if (trend.length) {
+        const tVarieties = [...new Set(trend.map(t => t.variety))];
+        const years = [...new Set(trend.map(t => t.year))].sort();
+        const datasets = tVarieties.map((v, i) => ({
+            label: v,
+            data: years.map(y => {
+                const pt = trend.find(t => t.variety === v && t.year === y);
+                return pt ? pt.avg_yield : null;
+            }),
+            borderColor: COLORS[i % COLORS.length],
+            backgroundColor: COLORS[i % COLORS.length] + '33',
+            tension: 0.3, fill: false, spanGaps: true,
+        }));
+        charts['trendChart'] = new Chart(document.getElementById('trendChart'), {
+            type: 'line',
+            data: { labels: years, datasets },
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'top' } },
+                scales: {
+                    y: { beginAtZero: false, title: { display: true, text: 'Avg Yield (tons)' } },
+                    x: { title: { display: true, text: 'Planting Year' } }
+                }
+            }
+        });
+    } else {
+        document.getElementById('noTrendData').classList.remove('d-none');
+    }
+}
+
+// Variety button click handler
+document.querySelectorAll('.variety-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.variety-btn').forEach(b => {
+            b.classList.remove('active', 'btn-success');
+            b.classList.add('btn-outline-success');
+        });
+        btn.classList.add('active', 'btn-success');
+        btn.classList.remove('btn-outline-success');
+
+        const variety = btn.dataset.variety;
+        document.getElementById('currentVarietyLabel').textContent = variety || 'All Varieties';
+        renderCharts(variety);
+    });
+});
+
+// Initial render
+renderCharts('{{ selected_variety|escapejs }}');
+</script>
+{% endblock %}

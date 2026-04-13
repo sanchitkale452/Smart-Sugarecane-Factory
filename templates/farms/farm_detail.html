@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{{ farm.name }}{% endblock %}
+
+{% block back_button %}
+<div class="container mt-3">
+  <a href="{% url 'farms:farm-list' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-arrow-left me-2"></i>{% trans "Back to Farms" %}
+  </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="row mb-4">
+    <!-- Farm Info Card -->
+    <div class="col-lg-8">
+      <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0"><i class="fas fa-seedling me-2"></i>{{ farm.name }}</h5>
+          <div>
+            <a href="{% url 'farms:farm-update' pk=farm.pk %}" class="btn btn-sm btn-outline-secondary">
+              <i class="fas fa-edit me-1"></i>{% trans "Edit" %}
+            </a>
+            <a href="{% url 'farms:farm-delete' pk=farm.pk %}" class="btn btn-sm btn-outline-danger ms-1">
+              <i class="fas fa-trash me-1"></i>{% trans "Delete" %}
+            </a>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <table class="table table-borderless table-sm">
+                <tr>
+                  <th class="text-muted">{% trans "Location" %}</th>
+                  <td>{{ farm.location }}</td>
+                </tr>
+                <tr>
+                  <th class="text-muted">{% trans "Area" %}</th>
+                  <td>{{ farm.area }} {% trans "acres" %}</td>
+                </tr>
+                <tr>
+                  <th class="text-muted">{% trans "Soil Type" %}</th>
+                  <td>{{ farm.get_soil_type_display }}</td>
+                </tr>
+                <tr>
+                  <th class="text-muted">{% trans "Status" %}</th>
+                  <td>
+                    <span class="badge bg-{% if farm.status == 'active' %}success{% elif farm.status == 'inactive' %}secondary{% else %}warning{% endif %}">
+                      {{ farm.get_status_display }}
+                    </span>
+                  </td>
+                </tr>
+                <tr>
+                  <th class="text-muted">{% trans "Owner" %}</th>
+                  <td>{{ farm.owner.get_full_name|default:farm.owner.username }}</td>
+                </tr>
+                <tr>
+                  <th class="text-muted">{% trans "Date Acquired" %}</th>
+                  <td>{{ farm.date_acquired|date:"d M Y" }}</td>
+                </tr>
+              </table>
+            </div>
+            <div class="col-md-6">
+              {% if farm.description %}
+                <p class="text-muted">{{ farm.description }}</p>
+              {% endif %}
+              <div class="row text-center mt-2">
+                <div class="col-6">
+                  <div class="border rounded p-2">
+                    <div class="fs-4 fw-bold text-primary">{{ total_activities }}</div>
+                    <small class="text-muted">{% trans "Activities" %}</small>
+                  </div>
+                </div>
+                <div class="col-6">
+                  <div class="border rounded p-2">
+                    <div class="fs-4 fw-bold text-success">{{ total_crop_cycles }}</div>
+                    <small class="text-muted">{% trans "Crop Cycles" %}</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Current Crop Card -->
+    <div class="col-lg-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-header">
+          <h6 class="mb-0"><i class="fas fa-leaf me-2"></i>{% trans "Current Crop" %}</h6>
+        </div>
+        <div class="card-body">
+          {% if current_crop %}
+            <p><strong>{% trans "Variety" %}:</strong> {{ current_crop.variety }}</p>
+            <p><strong>{% trans "Stage" %}:</strong>
+              <span class="badge bg-info">{{ current_crop.get_current_stage_display }}</span>
+            </p>
+            <p><strong>{% trans "Planted" %}:</strong> {{ current_crop.planting_date|date:"d M Y" }}</p>
+            <p><strong>{% trans "Expected Harvest" %}:</strong> {{ current_crop.expected_harvest_date|date:"d M Y" }}</p>
+            {% if current_crop.estimated_yield %}
+              <p><strong>{% trans "Est. Yield" %}:</strong> {{ current_crop.estimated_yield }} {% trans "tons" %}</p>
+            {% endif %}
+          {% else %}
+            <div class="text-center text-muted py-3">
+              <i class="fas fa-seedling fa-2x mb-2"></i>
+              <p>{% trans "No active crop cycle" %}</p>
+              <a href="{% url 'farms:crop-cycle-create' farm_pk=farm.pk %}" class="btn btn-sm btn-outline-success">
+                <i class="fas fa-plus me-1"></i>{% trans "Add Crop Cycle" %}
+              </a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Activities -->
+  <div class="card shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h6 class="mb-0"><i class="fas fa-history me-2"></i>{% trans "Recent Activities" %}</h6>
+      <a href="{% url 'farms:activity-create' farm_pk=farm.pk %}" class="btn btn-sm btn-outline-primary">
+        <i class="fas fa-plus me-1"></i>{% trans "Add Activity" %}
+      </a>
+    </div>
+    <div class="card-body">
+      {% if recent_activities %}
+        <div class="table-responsive">
+          <table class="table table-sm table-hover">
+            <thead>
+              <tr>
+                <th>{% trans "Date" %}</th>
+                <th>{% trans "Activity" %}</th>
+                <th>{% trans "Description" %}</th>
+                <th>{% trans "Cost" %}</th>
+                <th>{% trans "Performed By" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for activity in recent_activities %}
+                <tr>
+                  <td>{{ activity.date|date:"d M Y" }}</td>
+                  <td><span class="badge bg-secondary">{{ activity.get_activity_type_display }}</span></td>
+                  <td>{{ activity.description|truncatewords:10 }}</td>
+                  <td>₹{{ activity.cost }}</td>
+                  <td>{{ activity.performed_by.get_full_name|default:activity.performed_by.username|default:"-" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="text-center text-muted py-3">
+          <i class="fas fa-clipboard-list fa-2x mb-2"></i>
+          <p>{% trans "No activities recorded yet" %}</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

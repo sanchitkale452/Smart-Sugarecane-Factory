@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+{% load static %}
+{% load i18n %}
+<html lang="{{ LANGUAGE_CODE|default:'en' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Sugarcane Factory Management{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'css/chatbot.css' %}">
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{% url 'core:dashboard' %}">Sugarcane Factory</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'core:dashboard' %}">{% trans "Dashboard" %}</a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-seedling me-1"></i>{% trans "Farms" %}
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'farms:farm_dashboard' %}">
+                                <i class="fas fa-tachometer-alt me-2"></i>{% trans "Farm Dashboard" %}
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'farms:farm-list' %}">
+                                <i class="fas fa-list me-2"></i>{% trans "All Farms" %}
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'farms:farmer-management' %}">
+                                <i class="fas fa-users me-2"></i>{% trans "Farmer Management" %}
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'farms:farmer-registration' %}">
+                                <i class="fas fa-user-plus me-2"></i>{% trans "Register Farmer" %}
+                            </a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'inventory:dashboard' %}">{% trans "Inventory" %}</a>
+                    </li>
+
+                </ul>
+                <ul class="navbar-nav">
+                    <!-- Language Switcher -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="languageDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-language me-1"></i> {% get_current_language as LANGUAGE_CODE %}{% if LANGUAGE_CODE == 'mr' %}मराठी{% else %}English{% endif %}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            {% get_current_language as CURRENT_LANGUAGE %}
+                            {% get_available_languages as LANGUAGES %}
+                            {% get_language_info_list for LANGUAGES as languages %}
+                            {% for language in languages %}
+                                <li>
+                                    <form action="{% url 'set_language' %}" method="post" class="d-inline">
+                                        {% csrf_token %}
+                                        {% with path=request.get_full_path %}
+                                            {% if path|slice:":4" == '/mr/' %}
+                                                {# Currently on Marathi-prefixed URL #}
+                                                {% if language.code == 'en' %}
+                                                    <input name="next" type="hidden" value="{{ path|slice:'3:' }}" />
+                                                {% else %}
+                                                    <input name="next" type="hidden" value="{{ path }}" />
+                                                {% endif %}
+                                            {% else %}
+                                                {# Currently on unprefixed (English) URL #}
+                                                {% if language.code == 'en' %}
+                                                    <input name="next" type="hidden" value="{{ path }}" />
+                                                {% else %}
+                                                    <input name="next" type="hidden" value="/{{ language.code }}{{ path }}" />
+                                                {% endif %}
+                                            {% endif %}
+                                        {% endwith %}
+                                        <input name="language" type="hidden" value="{{ language.code }}" />
+                                        <button type="submit" class="dropdown-item {% if language.code == CURRENT_LANGUAGE %}active{% endif %}">
+                                            {{ language.name_local }}
+                                        </button>
+                                    </form>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </li>
+                    
+                    {% if user.is_authenticated %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-user me-1"></i> {{ user.get_username }}
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <form method="post" action="{% url 'logout' %}" style="margin:0">
+                                        {% csrf_token %}
+                                        <button type="submit" class="dropdown-item">{% trans "Logout" %}</button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'login' %}">{% trans "Login" %}</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Back Button -->
+    {% block back_button %}
+    {% if back_url %}
+    <div class="container mt-3">
+        <a href="{{ back_url }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>
+            {% trans "Back" %}
+        </a>
+    </div>
+    {% endif %}
+    {% endblock %}
+
+    <!-- Main Content -->
+    <main class="container mt-4">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-light text-center text-lg-start mt-5">
+        <div class="text-center p-3" style="background-color: rgba(0, 0, 0, 0.05);">
+            © {% now "Y" %} Sugarcane Factory Management System
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS and dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JS -->
+    <script src="{% static 'js/main.js' %}"></script>
+    <script src="{% static 'js/chatbot.js' %}"></script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

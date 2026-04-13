@@ -1,0 +1,278 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Inventory Analysis" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chart-card canvas { max-height: 270px; }
+</style>
+{% endblock %}
+
+{% block back_button %}
+<div class="container mt-3">
+    <a href="{% url 'inventory:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-2"></i>{% trans "Back to Inventory" %}
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-3 align-items-center">
+        <div class="col">
+            <h2><i class="fas fa-chart-bar me-2 text-primary"></i>{% trans "Inventory Analysis" %}</h2>
+            <p class="text-muted">{% trans "Visual breakdown of stock levels, transactions and item distribution" %}</p>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-body py-2">
+            <form method="get" class="d-flex align-items-center gap-3 flex-wrap">
+                <label class="fw-semibold mb-0">{% trans "Filter:" %}</label>
+                <select name="category" class="form-select form-select-sm w-auto">
+                    <option value="">{% trans "All Categories" %}</option>
+                    {% for cat in categories %}
+                        <option value="{{ cat.id }}" {% if selected_category == cat.id|stringformat:'s' %}selected{% endif %}>{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+                <select name="item_type" class="form-select form-select-sm w-auto">
+                    <option value="">{% trans "All Types" %}</option>
+                    {% for val, label in item_types %}
+                        <option value="{{ val }}" {% if selected_type == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="fas fa-filter me-1"></i>{% trans "Apply" %}
+                </button>
+                {% if selected_category or selected_type %}
+                <a href="{% url 'inventory:analysis' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-times me-1"></i>{% trans "Clear" %}
+                </a>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <!-- Row 1 -->
+    <div class="row mb-4">
+        <div class="col-lg-7 mb-4">
+            <div class="card shadow-sm chart-card">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="fas fa-boxes me-2"></i>{% trans "Stock Quantity by Category" %}</h6>
+                </div>
+                <div class="card-body"><canvas id="catChart"></canvas></div>
+            </div>
+        </div>
+        <div class="col-lg-5 mb-4">
+            <div class="card shadow-sm chart-card">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0"><i class="fas fa-tags me-2"></i>{% trans "Item Type Distribution" %}</h6>
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center">
+                    <canvas id="typeChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row 2 -->
+    <div class="row mb-4">
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow-sm chart-card">
+                <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0"><i class="fas fa-traffic-light me-2"></i>{% trans "Stock Status" %}</h6>
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow-sm chart-card">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0"><i class="fas fa-exchange-alt me-2"></i>{% trans "Transactions by Type (Last 30 Days)" %}</h6>
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center">
+                    <canvas id="txTypeChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow-sm chart-card">
+                <div class="card-header bg-secondary text-white">
+                    <h6 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>{% trans "Daily Transactions (Last 14 Days)" %}</h6>
+                </div>
+                <div class="card-body"><canvas id="dailyChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row 3 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm chart-card">
+                <div class="card-header bg-dark text-white">
+                    <h6 class="mb-0"><i class="fas fa-trophy me-2"></i>{% trans "Top 10 Items by Current Stock" %}</h6>
+                </div>
+                <div class="card-body"><canvas id="topItemsChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const COLORS = [
+    '#0d6efd','#198754','#ffc107','#dc3545','#0dcaf0',
+    '#6f42c1','#fd7e14','#20c997','#6c757d','#d63384'
+];
+
+const d = {{ chart_data_json|safe }};
+
+function pctTooltip(colors) {
+    return {
+        responsive: true,
+        plugins: {
+            legend: { position: 'bottom' },
+            tooltip: {
+                callbacks: {
+                    label: (ctx) => {
+                        const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                        const pct = total ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
+                        return ` ${ctx.label}: ${ctx.parsed} (${pct}%)`;
+                    }
+                }
+            }
+        }
+    };
+}
+
+function pctBarTooltip(axis) {
+    return {
+        callbacks: {
+            afterLabel: (ctx) => {
+                const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                const pct = total ? ((ctx.parsed[axis] / total) * 100).toFixed(1) : 0;
+                return `Share: ${pct}%`;
+            }
+        }
+    };
+}
+
+// 1. Stock by Category - horizontal bar
+const catTotal = d.stock_by_category.quantities.reduce((a, b) => a + b, 0);
+new Chart(document.getElementById('catChart'), {
+    type: 'bar',
+    data: {
+        labels: d.stock_by_category.labels,
+        datasets: [{
+            label: 'Total Quantity',
+            data: d.stock_by_category.quantities,
+            backgroundColor: COLORS,
+        }]
+    },
+    options: {
+        indexAxis: 'y', responsive: true,
+        plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { afterLabel: (ctx) => `Share: ${catTotal ? ((ctx.parsed.x / catTotal)*100).toFixed(1) : 0}%` } }
+        },
+        scales: { x: { beginAtZero: true, title: { display: true, text: 'Quantity' } } }
+    }
+});
+
+// 2. Item type - doughnut with %
+new Chart(document.getElementById('typeChart'), {
+    type: 'doughnut',
+    data: {
+        labels: d.item_type_distribution.labels,
+        datasets: [{ data: d.item_type_distribution.counts, backgroundColor: COLORS }]
+    },
+    options: pctTooltip()
+});
+
+// 3. Stock status - pie with %
+new Chart(document.getElementById('statusChart'), {
+    type: 'pie',
+    data: {
+        labels: d.stock_status.labels,
+        datasets: [{ data: d.stock_status.counts, backgroundColor: ['#198754','#ffc107','#dc3545'] }]
+    },
+    options: pctTooltip()
+});
+
+// 4. Transaction by type - doughnut with %
+if (d.transaction_by_type.labels.length) {
+    new Chart(document.getElementById('txTypeChart'), {
+        type: 'doughnut',
+        data: {
+            labels: d.transaction_by_type.labels,
+            datasets: [{ data: d.transaction_by_type.counts, backgroundColor: COLORS }]
+        },
+        options: pctTooltip()
+    });
+} else {
+    document.getElementById('txTypeChart').closest('.card-body').innerHTML =
+        '<p class="text-muted text-center mt-4">No transactions in last 30 days.</p>';
+}
+
+// 5. Daily trend - line
+if (d.daily_trend.labels.length) {
+    new Chart(document.getElementById('dailyChart'), {
+        type: 'line',
+        data: {
+            labels: d.daily_trend.labels,
+            datasets: [{
+                label: 'Transactions',
+                data: d.daily_trend.counts,
+                borderColor: '#6f42c1',
+                backgroundColor: 'rgba(111,66,193,0.15)',
+                fill: true, tension: 0.3,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        }
+    });
+} else {
+    document.getElementById('dailyChart').closest('.card-body').innerHTML =
+        '<p class="text-muted text-center mt-4">No transactions in last 14 days.</p>';
+}
+
+// 6. Top items - bar
+const topTotal = d.top_items.quantities.reduce((a, b) => a + b, 0);
+new Chart(document.getElementById('topItemsChart'), {
+    type: 'bar',
+    data: {
+        labels: d.top_items.labels,
+        datasets: [{
+            label: 'Current Stock',
+            data: d.top_items.quantities,
+            backgroundColor: COLORS,
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: (ctx) => {
+                        const unit = d.top_items.units[ctx.dataIndex];
+                        const pct = topTotal ? ((ctx.parsed.y / topTotal) * 100).toFixed(1) : 0;
+                        return ` ${ctx.parsed.y} ${unit} (${pct}% of total)`;
+                    }
+                }
+            }
+        },
+        scales: { y: { beginAtZero: true, title: { display: true, text: 'Quantity' } } }
+    }
+});
+</script>
+{% endblock %}

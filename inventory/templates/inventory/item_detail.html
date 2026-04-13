@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}{{ item.name }} - Details{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">{{ item.name }}</h1>
+        <div class="btn-group">
+            <a href="{% url 'inventory:item-update' item.id %}" class="btn btn-primary btn-sm">
+                <i class="fas fa-edit"></i> Edit
+            </a>
+            <a href="{% url 'inventory:item-list' %}" class="btn btn-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Back to List
+            </a>
+        </div>
+    </div>
+
+    <!-- Item Details Card -->
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Item Information</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>SKU:</strong> {{ item.sku|default:"-" }}</p>
+                            <p><strong>Barcode:</strong> {{ item.barcode|default:"-" }}</p>
+                            <p><strong>Category:</strong> {{ item.category.name|default:"-" }}</p>
+                            <p><strong>Type:</strong> {{ item.get_item_type_display }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Unit of Measure:</strong> {{ item.unit_of_measure.name }}</p>
+                            <p><strong>Current Stock:</strong> {{ item.current_quantity|default:0|floatformat:2 }} {{ item.unit_of_measure.abbreviation }}</p>
+                            <p><strong>Reorder Point:</strong> {{ item.reorder_point|default:0|floatformat:2 }} {{ item.unit_of_measure.abbreviation }}</p>
+                            <p><strong>Status:</strong> 
+                                {% if item.is_active %}
+                                    <span class="badge bg-success">Active</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Inactive</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    {% if item.description %}
+                        <div class="mt-3">
+                            <h6>Description:</h6>
+                            <p>{{ item.description }}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Stock Information Card -->
+        <div class="col-lg-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Stock Information</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <strong>Current Stock:</strong>
+                        <div class="progress mt-2">
+                            <div class="progress-bar {% if item.current_quantity <= item.reorder_point %}bg-danger{% elif item.current_quantity <= item.min_quantity %}bg-warning{% else %}bg-success{% endif %}" 
+                                 role="progressbar" 
+                                 style="width: {% widthratio item.current_quantity|default:0 item.max_quantity|default:100 100 %}%" 
+                                 aria-valuenow="{{ item.current_quantity|default:0 }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="{{ item.max_quantity|default:100 }}">
+                                {{ item.current_quantity|default:0|floatformat:0 }} / {{ item.max_quantity|default:0|floatformat:0 }}
+                            </div>
+                        </div>
+                        <small class="text-muted">
+                            {{ item.current_quantity|default:0|floatformat:2 }} of {{ item.max_quantity|default:0|floatformat:2 }} {{ item.unit_of_measure.abbreviation }}
+                        </small>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <a href="{% url 'inventory:adjust-inventory' %}?item={{ item.id }}" 
+                           class="btn btn-primary btn-block">
+                            <i class="fas fa-exchange-alt"></i> Adjust Stock
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Transactions -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">Recent Transactions</h6>
+                    <a href="{% url 'inventory:transaction-add' %}?item={{ item.id }}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus"></i> New Transaction
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if recent_transactions %}
+                        <div class="table-responsive">
+                            <table class="table table-bordered" width="100%" cellspacing="0">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Type</th>
+                                        <th>Quantity</th>
+                                        <th>Unit Cost</th>
+                                        <th>Total</th>
+                                        <th>Location</th>
+                                        <th>Reference</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for transaction in recent_transactions %}
+                                    <tr>
+                                        <td>{{ transaction.created_at|date:"M d, Y H:i" }}</td>
+                                        <td>
+                                            <span class="badge {% if transaction.transaction_type in 'purchase,transfer_in,production,return,adjustment' %}bg-success{% else %}bg-danger{% endif %}">
+                                                {{ transaction.get_transaction_type_display }}
+                                            </span>
+                                        </td>
+                                        <td>{{ transaction.quantity|floatformat:2 }} {{ item.unit_of_measure.abbreviation }}</td>
+                                        <td>{% if transaction.unit_cost %}${{ transaction.unit_cost|floatformat:2 }}{% else %}-{% endif %}</td>
+                                        <td>{% if transaction.total_cost %}${{ transaction.total_cost|floatformat:2 }}{% else %}-{% endif %}</td>
+                                        <td>{{ transaction.location.name }}</td>
+                                        <td>{{ transaction.reference|default:"-" }}</td>
+                                        <td>
+                                            <a href="#" class="btn btn-sm btn-info" title="View">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="text-end mt-2">
+                            <a href="{% url 'inventory:transaction-list' %}?item={{ item.id }}" class="btn btn-sm btn-link">
+                                View All Transactions <i class="fas fa-arrow-right"></i>
+                            </a>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No recent transactions found.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

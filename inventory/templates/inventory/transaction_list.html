@@ -1,0 +1,207 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load i18n %}
+
+{% block title %}{% trans "Inventory" %} {% trans "Transactions" %}{% endblock %}
+
+{% block back_button %}
+<div class="container mt-3">
+  <a href="{% url 'inventory:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-arrow-left me-2"></i>{% trans "Back to Inventory" %}
+  </a>
+</div>
+{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">{% trans "Inventory" %} {% trans "Transactions" %}</h1>
+        <div>
+            <a href="{% url 'inventory:transaction-add' %}" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus"></i> {% trans "New Transaction" %}
+            </a>
+            <a href="{% url 'inventory:export-inventory' %}" class="btn btn-success btn-sm">
+                <i class="fas fa-file-export"></i> {% trans "Export" %}
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters Card -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">{% trans "Filter" %} {% trans "Transactions" %}</h6>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label for="item" class="form-label">{% trans "Item" %}</label>
+                    <select name="item" id="item" class="form-select">
+                        <option value="">{% trans "All" %} {% trans "Items" %}</option>
+                        {% for item in items %}
+                            <option value="{{ item.id }}" 
+                                {% if request.GET.item == item.id|stringformat:'s' %}selected{% endif %}>
+                                {{ item.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="transaction_type" class="form-label">Transaction Type</label>
+                    <select name="transaction_type" id="transaction_type" class="form-select">
+                        <option value="">All Types</option>
+                        {% for value, label in transaction_types %}
+                            <option value="{{ value }}" 
+                                {% if request.GET.transaction_type == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="date_from" class="form-label">From Date</label>
+                    <input type="date" class="form-control" id="date_from" name="date_from" 
+                           value="{{ request.GET.date_from }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="date_to" class="form-label">To Date</label>
+                    <input type="date" class="form-control" id="date_to" name="date_to" 
+                           value="{{ request.GET.date_to }}">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-filter me-1"></i> Apply
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Transactions Table -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Transaction History</h6>
+        </div>
+        <div class="card-body">
+            {% if transactions %}
+                <div class="table-responsive">
+                    <table class="table table-bordered" width="100%" cellspacing="0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Item</th>
+                                <th>Type</th>
+                                <th>Qty</th>
+                                <th>Unit Cost</th>
+                                <th>Total</th>
+                                <th>Location</th>
+                                <th>Reference</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transaction in transactions %}
+                            <tr>
+                                <td>{{ transaction.created_at|date:"M d, Y H:i" }}</td>
+                                <td>
+                                    <a href="{% url 'inventory:item-detail' transaction.item.id %}">
+                                        {{ transaction.item.name }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <span class="badge {% if transaction.transaction_type in 'purchase,transfer_in,production,return,adjustment' %}bg-success{% else %}bg-danger{% endif %}">
+                                        {{ transaction.get_transaction_type_display }}
+                                    </span>
+                                </td>
+                                <td>{{ transaction.quantity|floatformat:2 }} {{ transaction.item.unit_of_measure.abbreviation }}</td>
+                                <td>{% if transaction.unit_cost %}${{ transaction.unit_cost|floatformat:2 }}{% else %}-{% endif %}</td>
+                                <td>{% if transaction.total_cost %}${{ transaction.total_cost|floatformat:2 }}{% else %}-{% endif %}</td>
+                                <td>{{ transaction.location.name }}</td>
+                                <td>{{ transaction.reference|default:"-" }}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="#" class="btn btn-info" title="View">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                {% if is_paginated %}
+                <div class="mt-4">
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                        <i class="fas fa-chevron-left"></i> Previous
+                                    </a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ num }}</span>
+                                    </li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                            {{ num }}
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                        Next <i class="fas fa-chevron-right"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+                
+            {% else %}
+                <div class="alert alert-info">
+                    No transactions found matching your criteria.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-submit form on filter change
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set default date range to last 30 days if no dates are selected
+        const dateFrom = document.getElementById('date_from');
+        const dateTo = document.getElementById('date_to');
+        
+        if (!dateFrom.value && !dateTo.value) {
+            const today = new Date();
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(today.getDate() - 30);
+            
+            dateFrom.valueAsDate = thirtyDaysAgo;
+            dateTo.valueAsDate = today;
+        }
+        
+        // Auto-submit when filters change
+        const filterSelects = document.querySelectorAll('select[name], input[type="date"]');
+        filterSelects.forEach(select => {
+            select.addEventListener('change', function() {
+                this.form.submit();
+            });
+        });
+    });
+</script>
+{% endblock %}

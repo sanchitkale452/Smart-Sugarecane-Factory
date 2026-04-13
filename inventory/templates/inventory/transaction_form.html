@@ -1,0 +1,220 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if form.instance.pk %}Edit Transaction{% else %}New Inventory Transaction{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            {% if form.instance.pk %}
+                Edit Transaction #{{ form.instance.id }}
+            {% else %}
+                New Inventory Transaction
+            {% endif %}
+        </h1>
+        <a href="{% if request.META.HTTP_REFERER %}{{ request.META.HTTP_REFERER }}{% else %}{% url 'inventory:transaction-list' %}{% endif %}" 
+           class="btn btn-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+    </div>
+
+    <div class="row
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Transaction Details</h6>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="transactionForm">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.transaction_type|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.item|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                {{ form.quantity|as_crispy_field }}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.unit_cost|as_crispy_field }}
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="total_cost" class="form-label">Total Cost</label>
+                                    <input type="text" class="form-control" id="total_cost" readonly>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.location|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.reference|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        {{ form.notes|as_crispy_field }}
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <button type="reset" class="btn btn-secondary me-md-2">
+                                <i class="fas fa-undo me-1"></i> Reset
+                            </button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i> Save Transaction
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <!-- Current Stock Levels -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Current Stock Level</h6>
+                </div>
+                <div class="card-body">
+                    <div id="stockInfo" class="text-center py-4">
+                        <p class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Select an item to view current stock levels
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Transaction Help -->
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Transaction Types</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled small">
+                        <li class="mb-2">
+                            <strong>Purchase:</strong> Adding new inventory from a supplier
+                        </li>
+                        <li class="mb-2">
+                            <strong>Sale:</strong> Removing inventory for a customer order
+                        </li>
+                        <li class="mb-2">
+                            <strong>Transfer In:</strong> Receiving items from another location
+                        </li>
+                        <li class="mb-2">
+                            <strong>Transfer Out:</strong> Sending items to another location
+                        </li>
+                        <li class="mb-2">
+                            <strong>Adjustment:</strong> Manual adjustment to correct inventory
+                        </li>
+                        <li class="mb-2">
+                            <strong>Production:</strong> Adding finished goods from production
+                        </li>
+                        <li class="mb-2">
+                            <strong>Consumption:</strong> Using raw materials in production
+                        </li>
+                        <li class="mb-2">
+                            <strong>Return:</strong> Customer or supplier returns
+                        </li>
+                        <li>
+                            <strong>Scrap:</strong> Removing damaged or expired items
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const itemSelect = document.getElementById('id_item');
+    const quantityInput = document.getElementById('id_quantity');
+    const unitCostInput = document.getElementById('id_unit_cost');
+    const totalCostInput = document.getElementById('total_cost');
+    const stockInfo = document.getElementById('stockInfo');
+    
+    // Calculate total cost when quantity or unit cost changes
+    function calculateTotal() {
+        const quantity = parseFloat(quantityInput.value) || 0;
+        const unitCost = parseFloat(unitCostInput.value) || 0;
+        const total = (quantity * unitCost).toFixed(2);
+        totalCostInput.value = total ? '$' + total : '-';
+    }
+    
+    // Update stock info when item changes
+    async function updateStockInfo() {
+        const itemId = itemSelect.value;
+        if (!itemId) {
+            stockInfo.innerHTML = `
+                <p class="text-muted">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Select an item to view current stock levels
+                </p>`;
+            return;
+        }
+        
+        try {
+            // You'll need to implement this API endpoint
+            const response = await fetch(`/api/inventory/items/${itemId}/stock/`);
+            const data = await response.json();
+            
+            stockInfo.innerHTML = `
+                <h5>${data.item_name}</h5>
+                <div class="mt-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Current Stock:</span>
+                        <strong>${data.quantity} ${data.unit}</strong>
+                    </div>
+                    <div class="progress" style="height: 20px;">
+                        <div class="progress-bar ${data.quantity <= data.reorder_point ? 'bg-danger' : 'bg-success'}" 
+                             role="progressbar" 
+                             style="width: ${data.percent}%" 
+                             aria-valuenow="${data.percent}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
+                            ${data.percent}%
+                        </div>
+                    </div>
+                    <div class="mt-2 small text-muted">
+                        Min: ${data.min_quantity} | 
+                        Reorder: ${data.reorder_point} | 
+                        Max: ${data.max_quantity || '∞'}
+                    </div>
+                </div>`;
+                
+        } catch (error) {
+            console.error('Error fetching stock info:', error);
+            stockInfo.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    Could not load stock information
+                </div>`;
+        }
+    }
+    
+    // Event listeners
+    quantityInput.addEventListener('input', calculateTotal);
+    unitCostInput.addEventListener('input', calculateTotal);
+    itemSelect.addEventListener('change', updateStockInfo);
+    
+    // Initial calculations
+    calculateTotal();
+    
+    // If an item is pre-selected (edit mode), load its stock info
+    if (itemSelect.value) {
+        updateStockInfo();
+    }
+});
+</script>
+{% endblock %}
