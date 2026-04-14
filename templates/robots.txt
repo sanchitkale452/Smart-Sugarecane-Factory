@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /media/
+Disallow: /static/
+
+Sitemap: https://smartsugarcane.com/sitemap.xml
